@@ -6,12 +6,15 @@ from sklearn.metrics import r2_score, mean_absolute_error
 import warnings
 warnings.filterwarnings('ignore')
 
-DATA_PATH = "../data/processing_data1.xlsx"
+DATA_PATH = "../data/processing_data_combined.xlsx"
 
 def load_and_prepare():
     df = pd.read_excel(DATA_PATH)
     df['Date'] = pd.to_datetime(df['Date'])
     df.columns = df.columns.str.strip()
+    df = df.dropna(subset=['Date', 'Live Birds', 'Live Bird Price', 'Selling Price'])
+    df = df[df['Live Birds'] > 0]
+    df = df.sort_values('Date').reset_index(drop=True)
 
     # Compute derived columns
     df['Total_Live_Weight_Kg'] = df['Live Birds'] * df['Average Bird Weight (Kg)']
@@ -23,6 +26,7 @@ def load_and_prepare():
 
     # Revenue = dressed weight * live bird price (market proxy)
     df['Landed_Price'] = df['Live Bird Price'] * (1 + df['Transit Shrinkage %']/100 + df['Mortality %']/100) + df['Transport Cost/Kg']
+    df = df[df['Yield %'] > 0]
     df['Dressed_Bird_Cost'] = df['Landed_Price'] / (df['Yield %'] / 100)
     df['Selling Price'] = pd.to_numeric(df['Selling Price'], errors='coerce').fillna(200)
     df['Revenue'] = df['Dressed_Weight_Kg'] * df['Selling Price']
@@ -45,6 +49,8 @@ def load_and_prepare():
     df['Prev_30Day_Avg_Profit'] = df['Net_Profit'].shift(1).rolling(30, min_periods=1).mean().fillna(0)
     df['Price_7Day_Avg'] = df['Live Bird Price'].shift(1).rolling(7, min_periods=1).mean().fillna(df['Live Bird Price'])
     df['Cost_7Day_Avg'] = df['Operating Cost/Kg'].shift(1).rolling(7, min_periods=1).mean().fillna(df['Operating Cost/Kg'])
+
+    df = df[df['Date'] >= '2025-01-01'].reset_index(drop=True)
 
     return df
 

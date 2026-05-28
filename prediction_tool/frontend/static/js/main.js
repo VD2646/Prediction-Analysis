@@ -211,10 +211,17 @@ async function loadAnalysis() {
     <div class="label">Total Loss Amount</div>
     <div class="big val-red">${fmt(data.total_loss_amount)}</div>
     <div class="kpi-sub">Across ${data.loss_day_count} loss days</div>`;
-  document.getElementById('profitAmountCard').innerHTML = `
-    <div class="label">Total Profit Amount</div>
-    <div class="big val-green">${fmt(data.total_profit_amount)}</div>
-    <div class="kpi-sub">Across ${data.profit_day_count} profitable days</div>`;
+
+    document.getElementById('lossAmountCard').innerHTML = `
+  <div class="label">Total Loss Amount</div>
+  <div class="big val-red">${fmt(data.total_loss_amount)}</div>
+  <div class="kpi-sub">Across ${data.loss_day_count} loss days</div>
+  <div style="margin-top:12px;font-size:12px;color:var(--muted)">
+    💡 <b>Mortality</b> & <b>Shrinkage</b> are your biggest controllable losses.<br>
+    Reducing mortality by 0.1% saves ~₹${Math.round(dash.total_birds_processed * 0.001 * 2.4 * 200).toLocaleString()} over this period.<br>
+    High operating cost days: review equipment/labour on worst days above.
+  </div>`;
+  
 }
 
 async function loadPrediction() {

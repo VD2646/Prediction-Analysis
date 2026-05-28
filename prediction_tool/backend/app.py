@@ -3,9 +3,6 @@ from flask_cors import CORS
 import os
 import sys
 
-from werkzeug.utils import secure_filename
-import io
-
 sys.path.insert(0, os.path.dirname(__file__))
 from ml_engine import load_and_prepare, train_model, predict_next_month, get_period_data, aggregate_period
 
