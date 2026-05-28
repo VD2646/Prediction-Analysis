@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_absolute_error
-from sklearn.preprocessing import StandardScaler
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -11,14 +10,8 @@ DATA_PATH = "../data/processing_data1.xlsx"
 
 def load_and_prepare():
     df = pd.read_excel(DATA_PATH)
-    print("COLUMNS:", df.columns.tolist())  # ADD THIS
-    print("SHAPE:", df.shape)               # ADD THIS
-    df.columns = df.columns.str.strip()     # strip whitespace
-    df = pd.read_excel(DATA_PATH)
-    df.columns = df.columns.str.strip()
-    df.rename(columns=lambda c: c.strip(), inplace=True)
     df['Date'] = pd.to_datetime(df['Date'])
-    df = df.sort_values('Date').reset_index(drop=True)
+    df.columns = df.columns.str.strip()
 
     # Compute derived columns
     df['Total_Live_Weight_Kg'] = df['Live Birds'] * df['Average Bird Weight (Kg)']
@@ -29,14 +22,16 @@ def load_and_prepare():
     df['Shrinkage_Loss_Kg'] = df['Effective_Weight_Kg'] * (df['Transit Shrinkage %'] / 100)
 
     # Revenue = dressed weight * live bird price (market proxy)
-    df['Revenue'] = df['Dressed_Weight_Kg'] * df['Live Bird Price']
+    df['Landed_Price'] = df['Live Bird Price'] * (1 + df['Transit Shrinkage %']/100 + df['Mortality %']/100) + df['Transport Cost/Kg']
+    df['Dressed_Bird_Cost'] = df['Landed_Price'] / (df['Yield %'] / 100)
+    df['Selling Price'] = pd.to_numeric(df['Selling Price'], errors='coerce').fillna(200)
+    df['Revenue'] = df['Dressed_Weight_Kg'] * df['Selling Price']
 
     # Cost = operating + transport (per kg of live weight)
-    df['Total_Cost_Per_Kg'] = df['Operating Cost/Kg'] + df['Transport Cost/Kg']
-    df['Total_Operating_Cost'] = df['Total_Live_Weight_Kg'] * df['Total_Cost_Per_Kg']
+    df['Total_Operating_Cost'] = df['Dressed_Weight_Kg'] * df['Operating Cost/Kg']
     df['By_Product_Income'] = df['Effective_Weight_Kg'] * df['By Product Income/Kg']
 
-    df['Net_Profit'] = df['Revenue'] + df['By_Product_Income'] - df['Total_Operating_Cost']
+    df['Net_Profit'] = df['Revenue'] + df['By_Product_Income'] - (df['Dressed_Weight_Kg'] * df['Dressed_Bird_Cost']) - df['Total_Operating_Cost']
     df['Is_Loss'] = (df['Net_Profit'] < 0).astype(int)
 
     # Time features
@@ -67,7 +62,9 @@ def train_model(df):
     X = df[features].copy()
     y = df[target]
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    split = int(len(X) * 0.8)
+    X_train, X_test = X.iloc[:split], X.iloc[split:]
+    y_train, y_test = y.iloc[:split], y.iloc[split:]
 
     model = RandomForestRegressor(n_estimators=200, max_depth=12, min_samples_split=3,
                                    min_samples_leaf=2, random_state=42, n_jobs=-1)
@@ -126,8 +123,10 @@ def predict_next_month(df, model, features):
         row['Prev_Day_Profit']      = prev_day_profit
         row['Prev_7Day_Avg_Profit'] = float(np.mean(rolling_profits[-7:]))
         row['Prev_30Day_Avg_Profit']= float(np.mean(rolling_profits[-30:]))
-        row['Price_7Day_Avg']       = row['Live Bird Price']
-        row['Cost_7Day_Avg']        = row['Operating Cost/Kg']
+        recent_prices = list(df['Live Bird Price'].tail(7))
+        recent_costs  = list(df['Operating Cost/Kg'].tail(7))
+        row['Price_7Day_Avg'] = float(np.mean(recent_prices))
+        row['Cost_7Day_Avg']  = float(np.mean(recent_costs))
 
         pred = model.predict([row[features].values])[0]
         pred = float(round(pred, 2))
@@ -135,17 +134,19 @@ def predict_next_month(df, model, features):
         # Compute expected expenditure for this day
         live_weight = float(row['Live Birds']) * float(base['Average Bird Weight (Kg)'])
         effective_weight = live_weight * (1 - float(base['Mortality %']) / 100)
-        bird_purchase = live_weight * float(row['Live Bird Price'])
-        processing    = effective_weight * float(row['Operating Cost/Kg'])
-        transport     = live_weight * float(row['Transport Cost/Kg'])
-        total_expenditure = float(round(bird_purchase + processing + transport, 2))
+        landed = float(row['Live Bird Price']) * (1 + float(base['Transit Shrinkage %'])/100 + float(base['Mortality %'])/100) + float(row['Transport Cost/Kg'])
+        dressed_cost = landed / (float(base['Yield %']) / 100)
+        bird_cost = effective_weight * dressed_cost
+        processing = effective_weight * float(row['Operating Cost/Kg'])
+        transport = live_weight * float(row['Transport Cost/Kg'])
+        total_expenditure = float(round(bird_cost + processing + transport, 2))
 
         predictions.append({
             'day': day_num,
             'date': date.strftime('%Y-%m-%d'),
             'predicted_profit': pred,
             'expected_expenditure': total_expenditure,
-            'expected_revenue': float(round(pred + total_expenditure, 2))
+            'expected_revenue': float(round(total_expenditure + pred, 2))
         })
 
         rolling_profits.append(pred)
@@ -189,7 +190,7 @@ def aggregate_period(filtered_df):
     # Cost breakdown
     cost_breakdown = {
         'Operating Cost': float(filtered_df['Total_Operating_Cost'].sum()),
-        'By-Product Income': -float(filtered_df['By_Product_Income'].sum()),
+        'By-Product Income': float(filtered_df['By_Product_Income'].sum()),
     }
 
     loss_factors = {

@@ -113,8 +113,10 @@ def upload():
         return jsonify({'success': True, 'rows': len(df), 'r2': round(r2, 4)})
     except Exception as e:
         import traceback
-        traceback.print_exc()   
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+    finally:
+        os.unlink(tmp_path)
 
 if __name__ == '__main__':
     app.run(debug=False, port=5050)
