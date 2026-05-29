@@ -31,6 +31,11 @@
       <a class="nav-item" data-page="factors" onclick="showPage('factors')">
         <span>⚖️</span> Key Factors
       </a>
+
+      <a class="nav-item" data-page="leakage" onclick="showPage('leakage')">
+  <span>💧</span> Leakage Analysis
+</a>
+
       <div style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;border:1px dashed var(--border)">
   <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Upload New Excel</div>
   <input type="file" id="xlsxUpload" accept=".xlsx" style="display:none" onchange="uploadFile(this)"/>
@@ -122,6 +127,15 @@
       </div>
     </div>
 
+
+    <!-- Leakage Page -->
+<div id="page-leakage" class="page">
+  <div style="padding: 24px;">
+    <div class="kpi-grid" id="leakageGrid"></div>
+    <div class="card" style="margin-top: 24px;" id="leakageTips"></div>
+  </div>
+</div>
+
     <!-- Factors Page -->
     <div id="page-factors" class="page">
       <div class="card chart-card" style="margin-bottom:24px">
@@ -132,6 +146,7 @@
     </div>
   </main>
 </div>
+
 <script src="/static/js/main.js"></script>
 </body>
 </html>

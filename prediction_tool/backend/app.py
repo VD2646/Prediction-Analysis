@@ -91,6 +91,60 @@ def loss_analysis():
         'profit_day_count': len(profit_days_df),
     })
 
+@app.route('/api/leakage-analysis')
+def leakage_analysis():
+    period = request.args.get('period', 'last_month')
+    filtered = get_period_data(df, period)
+
+    total_live_weight = float((filtered['Live Birds'] * filtered['Average Bird Weight (Kg)']).sum())
+    effective_weight = float(filtered['Effective_Weight_Kg'].sum())
+    dressed_weight = float(filtered['Dressed_Weight_Kg'].sum())
+
+    mortality_birds = float(filtered['Mortality_Loss_Birds'].sum())
+    mortality_value = float((filtered['Mortality_Loss_Birds'] * filtered['Average Bird Weight (Kg)'] * filtered['Live Bird Price']).sum())
+
+    shrinkage_kg = float(filtered['Shrinkage_Loss_Kg'].sum())
+    shrinkage_value = float((filtered['Shrinkage_Loss_Kg'] * filtered['Selling Price']).sum())
+
+    yield_gap_kg = float(((filtered['Effective_Weight_Kg'] * (0.72 - filtered['Yield %'] / 100)).clip(lower=0)).sum())
+    yield_gap_value = float(((filtered['Effective_Weight_Kg'] * (0.72 - filtered['Yield %'] / 100)).clip(lower=0) * filtered['Selling Price']).sum())
+
+    avg_op_cost = float(filtered['Operating Cost/Kg'].mean())
+    min_op_cost = float(filtered['Operating Cost/Kg'].min())
+    op_cost_waste = float(((filtered['Operating Cost/Kg'] - min_op_cost) * filtered['Dressed_Weight_Kg']).sum())
+
+    avg_transport = float(filtered['Transport Cost/Kg'].mean())
+    min_transport = float(filtered['Transport Cost/Kg'].min())
+    transport_waste = float(((filtered['Transport Cost/Kg'] - min_transport) * filtered['Live Birds'] * filtered['Average Bird Weight (Kg)']).sum())
+
+    total_leakage = mortality_value + shrinkage_value + yield_gap_value + op_cost_waste + transport_waste
+
+    return jsonify({
+        'mortality_birds': round(mortality_birds, 0),
+        'mortality_value': round(mortality_value, 2),
+        'avg_mortality_pct': round(float(filtered['Mortality %'].mean()), 3),
+
+        'shrinkage_kg': round(shrinkage_kg, 2),
+        'shrinkage_value': round(shrinkage_value, 2),
+        'avg_shrinkage_pct': round(float(filtered['Transit Shrinkage %'].mean()), 3),
+
+        'yield_gap_kg': round(yield_gap_kg, 2),
+        'yield_gap_value': round(yield_gap_value, 2),
+        'avg_yield_pct': round(float(filtered['Yield %'].mean()), 2),
+
+        'op_cost_waste': round(op_cost_waste, 2),
+        'avg_op_cost': round(avg_op_cost, 2),
+        'min_op_cost': round(min_op_cost, 2),
+
+        'transport_waste': round(transport_waste, 2),
+        'avg_transport': round(avg_transport, 2),
+        'min_transport': round(min_transport, 2),
+
+        'total_leakage': round(total_leakage, 2),
+        'total_live_weight': round(total_live_weight, 2),
+        'dressed_weight': round(dressed_weight, 2),
+    })
+
 @app.route('/api/upload', methods=['POST'])
 def upload():
     global df, model, r2, mae, importance, features

@@ -6,7 +6,8 @@ const PAGES = {
   dashboard: { title: 'Dashboard', sub: 'Revenue, cost and profit overview' },
   analysis: { title: 'Loss Analysis', sub: 'Where and why losses occur' },
   prediction: { title: 'ML Prediction', sub: 'Next month forecast using Random Forest' },
-  factors: { title: 'Key Factors', sub: 'What drives profit and loss' }
+  factors: { title: 'Key Factors', sub: 'What drives profit and loss' },
+  leakage: { title: 'Leakage Analysis', sub: 'Where money, yield and quality are leaking' }
 };
 
 function fmt(n, prefix = '₹') {
@@ -59,6 +60,7 @@ async function loadPage(name) {
   else if (name === 'analysis') await loadAnalysis();
   else if (name === 'prediction') await loadPrediction();
   else if (name === 'factors') await loadFactors();
+  else if (name === 'leakage') await loadLeakage();
 }
 
 async function loadDashboard() {
@@ -327,6 +329,65 @@ async function loadFactors() {
       <div class="kpi-value val-yellow">${fmtN(dash.avg_shrinkage_pct, 3)}%</div>
       <div class="kpi-sub">Transit weight loss</div>
     </div>`;
+}
+
+async function loadLeakage() {
+  const data = await fetchJSON(`${API}/leakage-analysis?period=${currentPeriod}`);
+
+  document.getElementById('leakageGrid').innerHTML = `
+    <div class="kpi-card kpi-loss" style="grid-column: span 2">
+      <div class="kpi-label">⚠️ Total Estimated Leakage</div>
+      <div class="kpi-value val-red">${fmt(data.total_leakage)}</div>
+      <div class="kpi-sub">Sum of all preventable losses in this period</div>
+    </div>
+
+    <div class="kpi-card kpi-loss">
+      <div class="kpi-label">🐦 Mortality Loss</div>
+      <div class="kpi-value val-red">${fmt(data.mortality_value)}</div>
+      <div class="kpi-sub">${data.mortality_birds} birds lost · avg ${data.avg_mortality_pct}% mortality</div>
+    </div>
+
+    <div class="kpi-card kpi-warn">
+      <div class="kpi-label">🚛 Transit Shrinkage Loss</div>
+      <div class="kpi-value val-yellow">${fmt(data.shrinkage_value)}</div>
+      <div class="kpi-sub">${data.shrinkage_kg} Kg lost · avg ${data.avg_shrinkage_pct}% shrinkage</div>
+    </div>
+
+    <div class="kpi-card kpi-warn">
+      <div class="kpi-label">⚙️ Yield Gap Loss</div>
+      <div class="kpi-value val-yellow">${fmt(data.yield_gap_value)}</div>
+      <div class="kpi-sub">${data.yield_gap_kg} Kg below 72% benchmark · avg yield ${data.avg_yield_pct}%</div>
+    </div>
+
+    <div class="kpi-card kpi-warn">
+      <div class="kpi-label">🏭 Operating Cost Waste</div>
+      <div class="kpi-value val-yellow">${fmt(data.op_cost_waste)}</div>
+      <div class="kpi-sub">Avg ₹${data.avg_op_cost}/Kg · best day ₹${data.min_op_cost}/Kg</div>
+    </div>
+
+    <div class="kpi-card kpi-warn">
+      <div class="kpi-label">🚚 Transport Cost Waste</div>
+      <div class="kpi-value val-yellow">${fmt(data.transport_waste)}</div>
+      <div class="kpi-sub">Avg ₹${data.avg_transport}/Kg · best day ₹${data.min_transport}/Kg</div>
+    </div>
+
+    <div class="kpi-card kpi-neutral">
+      <div class="kpi-label">📦 Total Dressed Weight</div>
+      <div class="kpi-value val-blue">${fmtN(data.dressed_weight / 1000, 1)}T</div>
+      <div class="kpi-sub">From ${fmtN(data.total_live_weight / 1000, 1)}T live weight input</div>
+    </div>
+  `;
+
+  document.getElementById('leakageTips').innerHTML = `
+  <div class="card-header"><div class="card-title">💡 How to Reduce These Leakages</div></div>
+  <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; color: var(--muted)">
+    <div><b style="color:var(--text)">🐦 Mortality</b><br>Improve ventilation, reduce stocking density, monitor feed/water quality daily. Target &lt;0.5%.</div>
+    <div><b style="color:var(--text)">🚛 Shrinkage</b><br>Reduce transit time, avoid overloading, use temperature-controlled transport. Target &lt;0.3%.</div>
+    <div><b style="color:var(--text)">⚙️ Yield Gap</b><br>Calibrate slaughter line regularly, train staff on evisceration technique. Target &gt;72%.</div>
+    <div><b style="color:var(--text)">🏭 Operating Cost</b><br>Benchmark against your lowest-cost days — identify equipment or shift patterns driving spikes.</div>
+    <div><b style="color:var(--text)">🚚 Transport Cost</b><br>Consolidate loads, negotiate fixed-route rates, track cost per Kg per route.</div>
+    <div><b style="color:var(--text)">📊 Overall</b><br>Reducing all leakages to benchmark levels could recover <b style="color:var(--accent)">${fmt(data.total_leakage)}</b> this period.</div>
+  </div>`;
 }
 
 async function uploadFile(input) {
