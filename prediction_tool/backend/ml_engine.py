@@ -244,4 +244,5 @@ def aggregate_period(filtered_df):
         'cost_breakdown': cost_breakdown,
         'loss_factors': loss_factors,
         'monthly_summary': monthly,
+        'total_bird_cost': round(float(filtered_df['Bird_Purchase_Cost'].sum()), 2),
     }

@@ -16,8 +16,9 @@ function fmt(n, prefix = '₹') {
   let str;
   if (abs >= 1e7) str = (n / 1e7).toFixed(2) + ' Cr';
   else if (abs >= 1e5) str = (n / 1e5).toFixed(2) + ' L';
+  else if (abs >= 1e3) str = (n / 1e3).toFixed(2) + ' K';
   else str = n.toFixed(0);
-  return (n < 0 ? '-' : '') + prefix + str;
+  return (n < 0 ? '-' : '') + prefix + (n < 0 ? str.replace('-','') : str);
 }
 
 function fmtN(n, dec = 2) { return n !== undefined ? n.toFixed(dec) : '—'; }
@@ -69,57 +70,64 @@ async function loadDashboard() {
   const isProfit = data.net_profit >= 0;
 
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi-card kpi-neutral">
-      <div class="kpi-label">Total Revenue</div>
-      <div class="kpi-value val-blue">${fmt(data.total_revenue)}</div>
-      <div class="kpi-sub">Gross from dressed birds</div>
-    </div>
-    <div class="kpi-card kpi-neutral">
-      <div class="kpi-label">Total Operating Cost</div>
-      <div class="kpi-value val-yellow">${fmt(data.total_cost)}</div>
-      <div class="kpi-sub">Processing + transport</div>
-    </div>
-    <div class="kpi-card ${isProfit ? 'kpi-profit' : 'kpi-loss'}">
-      <div class="kpi-label">Net Profit / Loss</div>
-      <div class="kpi-value ${isProfit ? 'val-green' : 'val-red'}">${fmt(data.net_profit)}</div>
-      <div class="kpi-sub">${isProfit ? '✅ Net profitable period' : '⚠️ Net loss period'}</div>
-    </div>
-    <div class="kpi-card kpi-neutral">
-      <div class="kpi-label">By-Product Income</div>
-      <div class="kpi-value val-green">${fmt(data.total_byproduct_income)}</div>
-      <div class="kpi-sub">Offal & by-products</div>
-    </div>
-    <div class="kpi-card kpi-warn">
-      <div class="kpi-label">Avg Mortality</div>
-      <div class="kpi-value val-yellow">${fmtN(data.avg_mortality_pct, 2)}%</div>
-      <div class="kpi-sub">Birds lost per batch</div>
-    </div>
-    <div class="kpi-card kpi-neutral">
-      <div class="kpi-label">Avg Yield</div>
-      <div class="kpi-value val-blue">${fmtN(data.avg_yield_pct)}%</div>
-      <div class="kpi-sub">Dressed weight efficiency</div>
-    </div>
-    <div class="kpi-card kpi-neutral">
-      <div class="kpi-label">Profit Days</div>
-      <div class="kpi-value val-green">${data.profit_days}</div>
-      <div class="kpi-sub">vs ${data.loss_days} loss days</div>
-    </div>
-    <div class="kpi-card kpi-neutral">
-      <div class="kpi-label">Birds Processed</div>
-      <div class="kpi-value val-blue">${data.total_birds_processed?.toLocaleString()}</div>
-      <div class="kpi-sub">${fmtN(data.total_dressed_kg / 1000, 1)}T dressed weight</div>
-    </div>
-    <div class="kpi-card kpi-neutral">
-  <div class="kpi-label">Expected Revenue (Potential)</div>
-  <div class="kpi-value val-blue">${fmt(data.total_expected_revenue)}</div>
-  <div class="kpi-sub">If mortality=0, shrinkage=0, yield=72%</div>
-</div>
-<div class="kpi-card kpi-loss">
-  <div class="kpi-label">Revenue Gap</div>
-  <div class="kpi-value val-red">${fmt(data.total_revenue_gap)}</div>
-  <div class="kpi-sub">Lost due to mortality, shrinkage & yield inefficiency</div>
-</div>
-  `;
+  <div class="kpi-card kpi-neutral">
+    <div class="kpi-label">Total Revenue</div>
+    <div class="kpi-value val-blue">${fmt(data.total_revenue)}</div>
+    <div class="kpi-sub">Gross from dressed birds</div>
+  </div>
+  <div class="kpi-card kpi-neutral">
+    <div class="kpi-label">By-Product Income</div>
+    <div class="kpi-value val-green">${fmt(data.total_byproduct_income)}</div>
+    <div class="kpi-sub">Offal & by-products</div>
+  </div>
+  <div class="kpi-card ${isProfit ? 'kpi-profit' : 'kpi-loss'}">
+    <div class="kpi-label">Net Profit / Loss</div>
+    <div class="kpi-value ${isProfit ? 'val-green' : 'val-red'}">${fmt(data.net_profit)}</div>
+    <div class="kpi-sub">${isProfit ? '✅ Net profitable period' : '⚠️ Net loss period'}</div>
+  </div>
+  <div class="kpi-card kpi-neutral">
+    <div class="kpi-label">Birds Processed</div>
+    <div class="kpi-value val-blue">${data.total_birds_processed?.toLocaleString()}</div>
+    <div class="kpi-sub">${fmtN(data.total_dressed_kg / 1000, 1)}T dressed weight</div>
+  </div>
+
+  <div class="kpi-card kpi-neutral">
+    <div class="kpi-label">Total Operating Cost</div>
+    <div class="kpi-value val-yellow">${fmt(data.total_cost)}</div>
+    <div class="kpi-sub">Processing + transport</div>
+  </div>
+  <div class="kpi-card kpi-warn">
+    <div class="kpi-label">Avg Mortality</div>
+    <div class="kpi-value val-yellow">${fmtN(data.avg_mortality_pct, 2)}%</div>
+    <div class="kpi-sub">Birds lost per batch</div>
+  </div>
+  <div class="kpi-card kpi-neutral">
+    <div class="kpi-label">Avg Yield</div>
+    <div class="kpi-value val-blue">${fmtN(data.avg_yield_pct)}%</div>
+    <div class="kpi-sub">Dressed weight efficiency</div>
+  </div>
+  <div class="kpi-card kpi-neutral">
+    <div class="kpi-label">Profit Days</div>
+    <div class="kpi-value val-green">${data.profit_days}</div>
+    <div class="kpi-sub">vs ${data.loss_days} loss days</div>
+  </div>
+
+  <div class="kpi-card kpi-neutral">
+    <div class="kpi-label">Expected Revenue (Potential)</div>
+    <div class="kpi-value val-blue">${fmt(data.total_expected_revenue)}</div>
+    <div class="kpi-sub">If mortality=0, shrinkage=0, yield=72%</div>
+  </div>
+  <div class="kpi-card kpi-warn">
+    <div class="kpi-label">Expected Operating Cost</div>
+    <div class="kpi-value val-yellow">${fmt(data.total_cost)}</div>
+    <div class="kpi-sub">Processing + transport benchmark</div>
+  </div>
+  <div class="kpi-card kpi-loss">
+    <div class="kpi-label">Revenue Gap</div>
+    <div class="kpi-value val-red">${fmt(data.total_revenue_gap)}</div>
+    <div class="kpi-sub">Lost to mortality, shrinkage & yield</div>
+  </div>
+`;
 
   // Trend chart
   destroyChart('trendChart');
@@ -155,14 +163,25 @@ async function loadDashboard() {
   });
 
   destroyChart('costChart');
-const cb = data.cost_breakdown || {};
+const totalRevenue = data.total_revenue + data.total_byproduct_income;
+const totalExpenses = data.total_cost + (data.total_bird_cost || 0);
+const netPL = totalRevenue - totalExpenses;
 charts['costChart'] = new Chart(document.getElementById('costChart'), {
   type: 'bar',
   data: {
-    labels: Object.keys(cb),
-    datasets: [{ label: '₹ Cost', data: Object.values(cb),
-      backgroundColor: ['#4f8ef7','#7c5cfc','#f59e0b','#06b6d4','#f43f5e','#10b981','#ef4444','#d946ef'].map(c=>c+'cc'),
-      borderRadius: 4 }]
+    labels: ['Processing Revenue', 'By-Product Income', 'Operating Cost', 'Live Bird Cost', 'Net Profit / Loss'],
+    datasets: [{
+      label: '₹ Amount',
+      data: [data.total_revenue, data.total_byproduct_income, data.total_cost, data.total_bird_cost || 0, netPL],
+      backgroundColor: [
+        'rgba(79,142,247,0.8)',
+        'rgba(34,197,94,0.8)',
+        'rgba(245,158,11,0.8)',
+        'rgba(239,68,68,0.8)',
+        netPL >= 0 ? 'rgba(34,197,94,0.8)' : 'rgba(239,68,68,0.8)'
+      ],
+      borderRadius: 4
+    }]
   },
   options: { ...chartDefaults(), responsive: true, indexAxis: 'y' }
 });
