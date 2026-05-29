@@ -3,6 +3,9 @@ from flask_cors import CORS
 import os
 import sys
 
+from threading import Lock
+model_lock = Lock()
+
 sys.path.insert(0, os.path.dirname(__file__))
 from ml_engine import load_and_prepare, train_model, predict_next_month, get_period_data, aggregate_period
 
@@ -35,6 +38,8 @@ def model_info():
 @app.route('/api/dashboard')
 def dashboard():
     period = request.args.get('period', 'last_month')
+    if period not in ['last_week', 'last_month', 'last_3_months']:
+        period = 'last_month'
     filtered = get_period_data(df, period)
     stats = aggregate_period(filtered)
     return jsonify(stats)
@@ -65,6 +70,8 @@ def predict_next():
 @app.route('/api/loss-analysis')
 def loss_analysis():
     period = request.args.get('period', 'last_month')
+    if period not in ['last_week', 'last_month', 'last_3_months']:
+        period = 'last_month'
     filtered = get_period_data(df, period)
     loss_days_df = filtered[filtered['Net_Profit'] < 0]
     profit_days_df = filtered[filtered['Net_Profit'] >= 0]
@@ -151,6 +158,10 @@ def upload():
     if 'file' not in request.files:
         return jsonify({'error': 'No file'}), 400
     file = request.files['file']
+    if not file.filename.endswith('.xlsx'):
+        return jsonify({'error': 'Only .xlsx allowed'}), 400
+    if request.content_length and request.content_length > 10 * 1024 * 1024:
+        return jsonify({'error': 'File too large'}), 400
     contents = file.read()
     import tempfile, os
     with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
@@ -159,8 +170,11 @@ def upload():
     try:
         import ml_engine
         ml_engine.DATA_PATH = tmp_path
-        df = ml_engine.load_and_prepare()
-        model, r2, mae, importance, features = train_model(df)
+        new_df = ml_engine.load_and_prepare()
+        new_model, new_r2, new_mae, new_importance, new_features = train_model(new_df)
+        with model_lock:
+            df = new_df
+            model, r2, mae, importance, features = new_model, new_r2, new_mae, new_importance, new_features
         return jsonify({'success': True, 'rows': len(df), 'r2': round(r2, 4)})
     except Exception as e:
         import traceback
