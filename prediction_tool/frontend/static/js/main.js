@@ -108,6 +108,16 @@ async function loadDashboard() {
       <div class="kpi-value val-blue">${data.total_birds_processed?.toLocaleString()}</div>
       <div class="kpi-sub">${fmtN(data.total_dressed_kg / 1000, 1)}T dressed weight</div>
     </div>
+    <div class="kpi-card kpi-neutral">
+  <div class="kpi-label">Expected Revenue (Potential)</div>
+  <div class="kpi-value val-blue">${fmt(data.total_expected_revenue)}</div>
+  <div class="kpi-sub">If mortality=0, shrinkage=0, yield=72%</div>
+</div>
+<div class="kpi-card kpi-loss">
+  <div class="kpi-label">Revenue Gap</div>
+  <div class="kpi-value val-red">${fmt(data.total_revenue_gap)}</div>
+  <div class="kpi-sub">Lost due to mortality, shrinkage & yield inefficiency</div>
+</div>
   `;
 
   // Trend chart

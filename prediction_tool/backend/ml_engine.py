@@ -35,8 +35,19 @@ def load_and_prepare():
     df['Total_Operating_Cost'] = df['Dressed_Weight_Kg'] * df['Operating Cost/Kg']
     df['By_Product_Income'] = df['Effective_Weight_Kg'] * df['By Product Income/Kg']
 
-    df['Net_Profit'] = df['Revenue'] + df['By_Product_Income'] - (df['Dressed_Weight_Kg'] * df['Dressed_Bird_Cost']) - df['Total_Operating_Cost']
+    df['Bird_Purchase_Cost'] = df['Effective_Weight_Kg'] * df['Live Bird Price']
+    df['Net_Profit'] = df['Revenue'] + df['By_Product_Income'] - df['Bird_Purchase_Cost'] - df['Total_Operating_Cost']
     df['Is_Loss'] = (df['Net_Profit'] < 0).astype(int)
+
+    df['Expected_Dressed_Kg'] = df['Live Birds'] * df['Average Bird Weight (Kg)'] * 0.72
+    df['Expected_Revenue'] = (df['Expected_Dressed_Kg'] * df['Selling Price']) + \
+                          (df['Live Birds'] * df['Average Bird Weight (Kg)'] * df['By Product Income/Kg'])
+    df['Revenue_Gap'] = df['Expected_Revenue'] - df['Revenue']
+    df['Revenue_Gap_Reason'] = df.apply(lambda r: (
+    f"Mortality ({r['Mortality %']:.2f}%) cost ₹{r['Mortality_Loss_Birds']*r['Average Bird Weight (Kg)']*r['Selling Price']:.0f}, "
+    f"Shrinkage ({r['Transit Shrinkage %']:.2f}%) cost ₹{r['Shrinkage_Loss_Kg']*r['Selling Price']:.0f}, "
+    f"Yield gap ({r['Yield %']:.1f}% vs 72%) cost ₹{max(0,(r['Expected_Dressed_Kg']-r['Dressed_Weight_Kg'])*r['Selling Price']):.0f}"
+), axis=1)
 
     # Time features
     df['Month'] = df['Date'].dt.month
@@ -217,6 +228,8 @@ def aggregate_period(filtered_df):
 
     return {
         'total_revenue': round(total_revenue, 2),
+        'total_expected_revenue': round(float(filtered_df['Expected_Revenue'].sum()), 2),
+        'total_revenue_gap': round(float(filtered_df['Revenue_Gap'].sum()), 2),
         'total_cost': round(total_cost, 2),
         'total_byproduct_income': round(total_byproduct, 2),
         'net_profit': round(net_profit, 2),
